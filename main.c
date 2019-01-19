@@ -1,14 +1,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <errno.h>
 
-void check_builtin(char *token) {
+int check_builtin(char *token) {
     printf("Checking against builtin commands\n");
     const char *builtin = "exit";
     if (strncmp(token, builtin, 4) == 0) {
         printf("Goodbye.\n");
         exit(0);
     }
+    return 0;
+}
+
+char *check_command_path(char *token) {
+    printf("testing can execute file\n");
+    char *command_path = malloc((strlen(token) + 5) * sizeof(char));
+    strcpy(command_path, "/bin/");
+    strcpy(command_path+5, token);
+    command_path[strlen(token) + 4] = '\0'; 
+    printf("Path: %s\n", command_path);
+    if (access(command_path, F_OK) == 0) return command_path;
+    printf("Couldn't get file access... Errno: %i\n", errno);
+    free(command_path);
+    return NULL;
 }
 
 int main() {
@@ -27,7 +43,17 @@ int main() {
         int token_counter = 0;
         while (token != NULL){
             token_counter++;
-            if (token_counter == 1) check_builtin(token);
+            int is_builtin = 0;
+            if (token_counter == 1) {
+                is_builtin = check_builtin(token);
+                if (is_builtin == 0) {
+                    char *command = check_command_path(token);
+                    if (command == NULL) {
+                        char error_message[30] = "An error has occurred\n";
+                        write(STDERR_FILENO, error_message, strlen(error_message));
+                    }
+                }
+            }
             printf("Token: %s\n", token);
             token = strtok(NULL, &delim);
         }
